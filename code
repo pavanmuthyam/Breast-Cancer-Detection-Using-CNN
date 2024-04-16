@@ -1,0 +1,157 @@
+from tkinter import messagebox
+from tkinter import *
+from tkinter import simpledialog
+import tkinter
+from tkinter import filedialog
+import matplotlib.pyplot as plt
+import numpy as np
+from tkinter.filedialog import askopenfilename
+import numpy as np 
+import pandas as pd 
+from sklearn import *
+from sklearn.metrics import confusion matrix 
+from sklearn.model_selection import train_test_split 
+from sklearn import svm
+from sklearn.metrics import accuracy_score 
+from sklearn.metrics import classification_report 
+from sklearn.ensemble import RandomForestClassifier
+from keras.models import Sequential
+from keras.layers import Dense
+
+main = tkinter.Tk()
+main.title("Machine Learning Methods Comparison") #designing main screen
+main.geometry("1300x1200")
+
+global filename
+global cls
+global X, Y, X_train, X_test, y_train, y_test
+global svm_acc, ann_acc # all global variables names define in above lines
+
+def traintest(train):     #method to generate test and train data from dataset
+    X = train.values[:, 0:9] 
+    Y = train.values[:, 10]
+    X_train, X_test, y_train, y_test = train_test_split( 
+    X, Y, test_size = 0.3, random_state = 0)
+    return X, Y, X_train, X_test, y_train, y_test
+
+def generateModel(): #method to read dataset values which contains all five features data
+    global X, Y, X_train, X_test, y_train, y_test
+    train = pd.read_csv(filename)
+    X, Y, X_train, X_test, y_train, y_test = traintest(train)
+    text.insert(END,"Train & Test Model Generated\n\n")
+    text.insert(END,"Total Dataset Size : "+str(len(train))+"\n")
+    text.insert(END,"Split Training Size : "+str(len(X_train))+"\n")
+    text.insert(END,"Split Test Size : "+str(len(X_test))+"\n")
+
+
+def upload(): #function to upload tweeter profile
+    global filename
+    filename = filedialog.askopenfilename(initialdir="dataset")
+    text.delete('1.0', END)
+    text.insert(END,filename+" loaded\n");
+
+
+def prediction(X_test, cls):  #prediction done here
+    y_pred = cls.predict(X_test) 
+    for i in range(len(X_test)):
+      print("X=%s, Predicted=%s" % (X_test[i], y_pred[i]))
+    return y_pred 
+    
+# Function to calculate accuracy 
+def cal_accuracy(y_test, y_pred, details): 
+    cm = confusion_matrix(y_test, y_pred)
+    accuracy = accuracy_score(y_test,y_pred)*100
+    text.insert(END,details+"\n\n")
+    text.insert(END,"Accuracy : "+str(accuracy)+"\n\n")
+    text.insert(END,"Report : "+str(classification_report(y_test, y_pred))+"\n")
+    text.insert(END,"Confusion Matrix : "+str(cm)+"\n\n\n\n\n")  
+    return accuracy
+
+def runSVM():
+    global svm_acc
+    global cls
+    global X, Y, X_train, X_test, y_train, y_test
+    cls = svm.SVC(kernel='rbf', 
+            class_weight='balanced', # penalize
+            probability=True)
+    cls.fit(X_train, y_train) 
+    text.insert(END,"Prediction Results\n\n") 
+    prediction_data = prediction(X_test, cls) 
+    svm_acc = cal_accuracy(y_test, prediction_data,'SVM Accuracy, Classification Report & Confusion Matrix') 
+                
+def runANN():
+    global ann_acc
+    model = Sequential()
+    model.add(Dense(12, input_dim=9, activation='relu'))
+    model.add(Dense(9, activation='relu'))
+    model.add(Dense(1, activation='softmax'))
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.fit(X_train, y_train, epochs=100, batch_size=64)
+    _, ann_acc = model.evaluate(X_train, y_train)
+    ann_acc = ann_acc*100
+    text.insert(END,"ANN Accuracy : "+str(ann_acc)+"\n\n")
+    
+
+def predictDisease():
+    text.delete('1.0', END)
+    filename = filedialog.askopenfilename(initialdir="dataset")
+    test = pd.read_csv(filename)
+    test = test.values[:, 0:9] 
+    text.insert(END,filename+" test file loaded\n");
+    y_pred = cls.predict(test) 
+    for i in range(len(test)):
+        if str(y_pred[i]) == '1':
+            text.insert(END,"X=%s, Predicted=%s" % (X_test[i], 'Infected')+"\n")
+        else:
+            text.insert(END,"X=%s, Predicted=%s" % (X_test[i], 'Not Infected')+"\n")
+     
+
+def graph():
+    height = [svm_acc,ann_acc]
+    bars = ('SVM Accuracy', 'ANN Accuracy')
+    y_pos = np.arange(len(bars))
+    plt.bar(y_pos, height)
+    plt.xticks(y_pos, bars)
+    plt.show()    
+    
+font = ('times', 16, 'bold')
+title = Label(main, text='Comparison of Machine Learning Methods for Breast Cancer Diagnosis')
+title.config(bg='greenyellow', fg='dodger blue')  
+title.config(font=font)           
+title.config(height=3, width=120)       
+title.place(x=0,y=5)
+
+font1 = ('times', 12, 'bold')
+text=Text(main,height=20,width=150)
+scroll=Scrollbar(text)
+text.configure(yscrollcommand=scroll.set)
+text.place(x=50,y=120)
+text.config(font=font1)
+
+font1 = ('times', 14, 'bold')
+uploadButton = Button(main, text="Upload Wisconsin Dataset", command=upload)
+uploadButton.place(x=50,y=550)
+uploadButton.config(font=font1)  
+
+modelButton = Button(main, text="Generate Train & Test Model", command=generateModel)
+modelButton.place(x=350,y=550)
+modelButton.config(font=font1) 
+
+runsvm = Button(main, text="Run SVM Algorithm", command=runSVM)
+runsvm.place(x=750,y=550)
+runsvm.config(font=font1) 
+
+runann = Button(main, text="Run ANN Algorithm", command=runANN)
+runann.place(x=50,y=600)
+runann.config(font=font1) 
+
+predict = Button(main, text="Upload Test Data & Predict Disease", command=predictDisease)
+predict.place(x=350,y=600)
+predict.config(font=font1) 
+
+graph = Button(main, text="Accuracy Graph", command=graph)
+graph.place(x=750,y=600)
+graph.config(font=font1) 
+
+main.config(bg='LightSkyBlue')
+main.mainloop()
